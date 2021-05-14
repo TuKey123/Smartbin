@@ -1,15 +1,49 @@
 const express = require("express");
 const path = require("path");
+const axios = require('axios');
 
+var bin = []
+axios.get('https://web-service-smartbin.herokuapp.com/bin/all').
+  then(res=>{
+    var arr = res.data;
+    bin = arr.map(val=>{
+      return {
+        id:val.id,
+        name:val.name,
+        containers:[],
+        trashes:[]
+      }
+    })
+  }).
+  then(()=>{
+    bin.forEach(element => {
+      axios.get(`https://web-service-smartbin.herokuapp.com/bin/all_detail?binId=${element.id}`).
+      then(res=>{
+          const containing = res.data.containing;
+          containing.forEach(ob => element.containers.push({id:ob.id_con,total:ob.containing,data_timestamp: [65, 60, 100, 65, 54, 86]}));
+      }).
+      then(()=>{
+        axios.get(`http://web-service-smartbin.herokuapp.com/collection/latest?binId=${element.id}`).
+        then(res => {
+          const trashes = res.data;
+          element.trashes = trashes.map(val => {
+            if(val.trashId === 1) return ['bottle',val.total];
+            else if(val.trashId === 2) return ['plasticBag',val.total];
+            else return ['can',val.total];
+          })
+        })
+      });
+      })
+    });
 const bins = [
   {
     id: 1,
     name: "Bin 1",
     location: "25.1346",
     containers: [
-      { id: 1, trash: 50, space: 50, data_timestamp: [65, 60, 100, 65, 54, 86] },
-      { id: 2, trash: 40, space: 60, data_timestamp: [41, 14, 37, 26, 79, 46] },
-      { id: 3, trash: 80, space: 20, data_timestamp: [94, 12, 44, 57, 43, 24] },
+      { id: 1, trash: 50, data_timestamp: [65, 60, 100, 65, 54, 86] },
+      { id: 2, trash: 40, data_timestamp: [41, 14, 37, 26, 79, 46] },
+      { id: 3, trash: 80, data_timestamp: [94, 12, 44, 57, 43, 24] },
     ],
     trashes: [
       ["bottle", 37],
@@ -76,5 +110,6 @@ app.get("/", (req, res) => {
 });
 
 app.get("/bins", (req, res) => {
-  res.send(bins);
+  res.send(bin);
 });
+
